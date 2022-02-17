@@ -19,7 +19,8 @@ import time
 
 import pdb
 
-device = utils.device
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 
 class HyperMod(nn.Module):
     
@@ -106,7 +107,7 @@ class HyperMod(nn.Module):
         #v = v*self.v_weight
         if self.is_last_mod:
             ev_edge = (ev*torch.exp(self.e_weight)/np.exp(2))[self.args.paper_author[:, 1]]
-            pdb.set_trace()
+            #pdb.set_trace()
             v2 = torch.zeros_like(v)
             v2.scatter_add_(src=ev_edge, index=vidx, dim=0)
             v2 = self.edge_lin(v2)
@@ -394,7 +395,7 @@ def gen_data_cora(args, data_path='data/cora_author.pt', flip_edge_node=True, do
     for author_idx, wt_l in author2sum.items():
         e_reg_sum[author_idx] = sum(wt_l)
 
-    pdb.set_trace()
+    #pdb.set_trace()
     #this is used in denominator only
     e_reg_sum[e_reg_sum==0] = 1
     v_reg_sum[v_reg_sum==0] = 1

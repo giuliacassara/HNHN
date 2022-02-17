@@ -1,7 +1,7 @@
 
 # Hypergraph Networks with Hyperedge Neurons (HNHN)
 
-This repo contains the companion code for our paper:
+This repo contains the companion code of the paper:
 
 [**HNHN: Hypergraph Networks with Hyperedge Neurons**](https://arxiv.org/abs/2006.12278)<br>
 By [Yihe Dong](https://yihedong.me/), [Will Sawin](https://williamsawin.com/), and [Yoshua Bengio](https://yoshuabengio.org/)
@@ -48,3 +48,13 @@ If you find our work helpful, please cite as:
   year          = {2020}
   }
 ```
+
+
+## Graph Convolutional Network 
+
+[graph.py](graph.py) performs a convolutional neural network on citation dataset. 
+
+
+For all runtime options, please run:
+
+`python graph.py --help`
