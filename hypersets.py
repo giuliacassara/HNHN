@@ -29,11 +29,11 @@ from torch_geometric.utils import add_self_loops, degree
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-class DeepSet(MessagePassing):
+class HyperEdgeSet(MessagePassing):
     '''
     The class returns a hyperedge-level representation of an input hypergraph. 
     Using the sum-pooling layer results in the invariance of the architecture to 
-    node permutation inside each hyperedge. This vector representation is the used for
+    node permutation inside each hyperedge. This vector representation is then used for
     prediction, adding a GCN or GAT layer to predict each node's label.
 
     in_channels (int): Size of each input sample, or :obj:`-1` to derive 
@@ -41,42 +41,35 @@ class DeepSet(MessagePassing):
     out_channels (int): Size of each output sample.
 
         Shapes:
-        - **input:**
-          node features {V}|, F)`,
-          hyperedge indices {V}|, {E}|)`,
-          hyperedge weights |E|
-        - **output:** node features :math:`(|\mathcal{V}|, F_{out})`
+        - input
+            node features
+            hyperedge indices
+            hyperedge weights (optional)
+        - output
+            node labels
     '''
     def __init__(self, in_channels, out_channels):
         super().__init__(aggr='sum') #  "Sum" aggregation.
-        self.mlp = Seq(Linear(2 * in_channels, out_channels),
+        self.mlp = Seq(Linear(in_channels, out_channels),
                        ReLU(),
                        Linear(out_channels, out_channels))
         self.sigmoid = torch.nn.Sigmoid()
 
     
     def forward(self, x, edge_index):
-        # x has shape [N, in_channels]
-        # edge_index has shape [2, E]
+        x = self.sigmoid(x)
         return self.propagate(edge_index, x=x)
 
     def message(self, x_i):
-        # x_i has shape [E, in_channels]
-        output = self.mlp(x_i)
-        return self.sigmoid(output)
-        
+        return self.mlp(x_i)
 
-class GCNConv(torch.nn.Module):
+class HyperEdgeConv(HyperEdgeSet):
     def __init__(self):
-        super().__init__()  # "Add" aggregation (Step 5).
+        super().__init__()  
         self.conv = GCNConv(dataset.num_node_features, dataset.num_classes)
 
     def forward(self, x, edge_index):
-        # x has shape [N, in_channels]
-        # edge_index has shape [2, E]
-
         x = self.conv(x, edge_index)
-
         return F.log_softmax(x, dim=1)
  
 class Hypertrain:
