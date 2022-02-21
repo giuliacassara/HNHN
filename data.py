@@ -15,6 +15,32 @@ import utils
 import pdb
 
 
+def gen_synthetic_data(args):
+    '''
+    Generate synthetic data. 
+    '''
+    args.n_hidden = 50
+    args.n_epoch = 200
+    args.ne = 2
+    args.nv = 3
+    ne = args.ne
+    nv = args.nv    
+    #no replacement!
+    n_labels = max(1, int(nv*.1))
+    #numpy.random.choice(a, size=None, replace=True, p=None)
+    args.label_idx = torch.from_numpy(np.random.choice(nv, size=(n_labels,), replace=False )).to(torch.int64)
+    #args.label_idx = torch.zeros(n_labels, dtype=torch.int64).random_(0, nv) #torch.randint(torch.int64, nv, (int(nv*.1), ))
+    args.labels = torch.ones(n_labels, dtype=torch.int64)
+    args.labels[:n_labels//2] = 0
+    args.n_cls = 2
+    #labeled 
+    args.vidx = torch.zeros((ne,), dtype=torch.int64).random_(0, nv-1) + 1 #np.random.randint(nv, (ne, 3))
+    args.eidx = torch.zeros((nv,), dtype=torch.int64).random_(0, ne-1) + 1 #torch.random.randint(ne, (nv, 2))    
+    args.v_weight = torch.ones((nv, 1)) / 2
+    args.e_weight = torch.ones(ne, 1) / 3
+    print(args)
+    #train(args)
+
 def process_citeseer(args):
     '''
     citeseer.content of form <paper_id> <word_attributes>+ <class_label>

@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 import torch_geometric.transforms as T
 from torch_geometric.datasets import Planetoid
-from torch_geometric.nn import ChebConv, GCNConv  # noqa
+from torch_geometric.nn import Sequential, GCNConv  # noqa
 from torch_geometric.nn import MessagePassing
 from torch import Tensor
 
