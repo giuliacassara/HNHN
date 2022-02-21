@@ -10,10 +10,7 @@ from torch.nn import Parameter
 import torch.optim as optim
 import torch.nn.functional as F
 import torch.optim as optim
-import utils
-import math
 from collections import defaultdict
-import sys
 
 import argparse
 import os.path as osp
@@ -37,7 +34,18 @@ class DeepSet(MessagePassing):
     The class returns a hyperedge-level representation of an input hypergraph. 
     Using the sum-pooling layer results in the invariance of the architecture to 
     node permutation inside each hyperedge. This vector representation is the used for
-    prediction, adding a GCN or GAT layer to predict each node's label
+    prediction, adding a GCN or GAT layer to predict each node's label.
+
+    in_channels (int): Size of each input sample, or :obj:`-1` to derive 
+    the size from the first input(s) to the forward method.
+    out_channels (int): Size of each output sample.
+
+        Shapes:
+        - **input:**
+          node features {V}|, F)`,
+          hyperedge indices {V}|, {E}|)`,
+          hyperedge weights |E|
+        - **output:** node features :math:`(|\mathcal{V}|, F_{out})`
     '''
     def __init__(self, in_channels, out_channels):
         super().__init__(aggr='sum') #  "Sum" aggregation.
@@ -58,37 +66,18 @@ class DeepSet(MessagePassing):
         return self.sigmoid(output)
         
 
-class GCNConv(MessagePassing):
-    def __init__(self, in_channels, out_channels):
-        super().__init__(aggr='add')  # "Add" aggregation (Step 5).
-        self.lin = torch.nn.Linear(in_channels, out_channels)
+class GCNConv(torch.nn.Module):
+    def __init__(self):
+        super().__init__()  # "Add" aggregation (Step 5).
+        self.conv = GCNConv(dataset.num_node_features, dataset.num_classes)
 
     def forward(self, x, edge_index):
         # x has shape [N, in_channels]
         # edge_index has shape [2, E]
 
-        # Step 1: Add self-loops to the adjacency matrix.
-        edge_index, _ = add_self_loops(edge_index, num_nodes=x.size(0))
+        x = self.conv(x, edge_index)
 
-        # Step 2: Linearly transform node feature matrix.
-        x = self.lin(x)
-
-        # Step 3: Compute normalization.
-        row, col = edge_index
-        deg = degree(col, x.size(0), dtype=x.dtype)
-        deg_inv_sqrt = deg.pow(-0.5)
-        deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-        norm = deg_inv_sqrt[row] * deg_inv_sqrt[col]
-
-        # Step 4-5: Start propagating messages.
-        return self.propagate(edge_index, x=x, norm=norm)
-
-    def message(self, x_j, norm):
-        # x_j has shape [E, out_channels]
-
-        # Step 4: Normalize node features.
-        return norm.view(-1, 1) * x_j
-
+        return F.log_softmax(x, dim=1)
  
 class Hypertrain:
     def __init__(self, args):      
@@ -106,7 +95,7 @@ def train(args):
     hypertrain = Hypertrain(args)
     pred_all, loss, test_err = hypertrain.train(args.v, args.e, args.label_idx, args.labels)
     return test_err
-    
+
     
 def is_valid_dataset(parser, arg):
       if arg not in ["Cora", "Citeseer", "Pubmed"]:
