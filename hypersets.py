@@ -28,8 +28,16 @@ from torch_geometric.utils import add_self_loops, degree
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+class Hypergraph():
+    def __init__(self, vidx, eidx, nv, ne, v_weight, e_weight) -> None:
+        self.vidx = vidx
+        self.eidx = eidx
+        self.nv = nv
+        self.ne = ne
+        self.v_weight = v_weight
+        self.e_weight = e_weight
 
-class HyperEdgeSet(MessagePassing):
+class InvariantModel(nn.Module):
     '''
     The class returns a hyperedge-level representation of an input hypergraph. 
     Using the sum-pooling layer results in the invariance of the architecture to 
@@ -42,28 +50,34 @@ class HyperEdgeSet(MessagePassing):
 
         Shapes:
         - input
-            node features
+            node features 
             hyperedge indices
             hyperedge weights (optional)
         - output
-            node labels
+            node features (reduced dimension)
     '''
     def __init__(self, in_channels, out_channels):
-        super().__init__(aggr='sum') #  "Sum" aggregation.
-        self.mlp = Seq(Linear(in_channels, out_channels),
+        super().__init__() #  "Sum" aggregation.
+        self.phi = Seq(Linear(in_channels, out_channels),
                        ReLU(),
                        Linear(out_channels, out_channels))
-        self.sigmoid = torch.nn.Sigmoid()
+        self.rho = torch.nn.Sigmoid()
 
     
-    def forward(self, x, edge_index):
-        x = self.sigmoid(x)
-        return self.propagate(edge_index, x=x)
+    def forward(self, x):
+        # compute the representation for each data point
+        x = self.phi.forward(x)
 
-    def message(self, x_i):
-        return self.mlp(x_i)
+        # sum up the representations
+        # here I have assumed that x is 2D and the each row is representation of an input, so the following operation
+        # will reduce the number of rows to 1, but it will keep the tensor as a 2D tensor.
+        x = torch.sum(x, dim=0, keepdim=True)
+        # compute the output
+        out = self.rho.forward(x)
 
-class HyperEdgeConv(HyperEdgeSet):
+        return out
+
+class HyperEdgeConv(InvariantModel):
     def __init__(self):
         super().__init__()  
         self.conv = GCNConv(dataset.num_node_features, dataset.num_classes)
@@ -96,10 +110,15 @@ def is_valid_dataset(parser, arg):
       else:
            return arg
 
+# TODO
+def from_incidence_to_hyperedge_index(incidence_matrix):
+    hyperedge_index = incidence_matrix
+    return hyperedge_index
 
 def gen_synthetic_data(args, ne, nv):
     '''
     Generate synthetic data. 
+    
     '''  
     #no replacement!
     args.n_hidden = 50
@@ -111,12 +130,24 @@ def gen_synthetic_data(args, ne, nv):
     args.labels[:n_labels//2] = 0
     args.n_cls = 2
     #labeled 
-    args.vidx = torch.zeros((ne,), dtype=torch.int64).random_(0, nv-1) + 1 #np.random.randint(nv, (ne, 3))
-    args.eidx = torch.zeros((nv,), dtype=torch.int64).random_(0, ne-1) + 1 #torch.random.randint(ne, (nv, 2))    
-    args.v_weight = torch.ones((nv, 1)) / 2
-    args.e_weight = torch.ones(ne, 1) / 3
-    print(args)
-    #train(args)
+    #args.vidx = torch.zeros((ne,), dtype=torch.int64).random_(0, nv-1) + 1 #np.random.randint(nv, (ne, 3))
+    #args.eidx = torch.zeros((nv,), dtype=torch.int64).random_(0, ne-1) + 1 #torch.random.randint(ne, (nv, 2))    
+    #args.v_weight = torch.ones((nv, 1)) / 2
+    #args.e_weight = torch.ones(ne, 1) / 3
+    incidence_matrix = torch.randint(0, 2, (nv,ne))
+    #print(incidence_matrix)
+    vertex_index = torch.zeros((ne,), dtype=torch.int64).random_(0, nv-1) + 1
+    #print(args.vidx)
+    #print(args.eidx)
+    hyperedge_index = torch.tensor([
+    [0, 1, 2, 1, 2, 3],
+    [0, 0, 0, 1, 1, 1],
+    ])
+    feature_dimension = 10
+    node_features = torch.randn(nv, feature_dimension)
+    deepset = InvariantModel(feature_dimension, feature_dimension)
+    readout = deepset.forward(node_features)
+    print(readout)
 
 if __name__ =='__main__':
     parser = argparse.ArgumentParser()
@@ -146,6 +177,6 @@ if __name__ =='__main__':
     dataset = Planetoid(".", dataset, transform=T.NormalizeFeatures())
     data = dataset[0]
 
-    gen_synthetic_data(args, ne=2, nv=3)
+    gen_synthetic_data(args, ne=3, nv=4)
 
 
