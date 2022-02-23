@@ -67,7 +67,6 @@ class InvariantModel(nn.Module):
     def forward(self, x):
         # compute the representation for each data point
         x = self.phi.forward(x)
-
         # sum up the representations
         # here I have assumed that x is 2D and the each row is representation of an input, so the following operation
         # will reduce the number of rows to 1, but it will keep the tensor as a 2D tensor.
@@ -118,36 +117,38 @@ def from_incidence_to_hyperedge_index(incidence_matrix):
 def gen_synthetic_data(args, ne, nv):
     '''
     Generate synthetic data. 
-    
     '''  
     #no replacement!
     args.n_hidden = 50
     n_labels = max(1, int(nv*.1))
-    #numpy.random.choice(a, size=None, replace=True, p=None)
     args.label_idx = torch.from_numpy(np.random.choice(nv, size=(n_labels,), replace=False )).to(torch.int64)
-    #args.label_idx = torch.zeros(n_labels, dtype=torch.int64).random_(0, nv) #torch.randint(torch.int64, nv, (int(nv*.1), ))
     args.labels = torch.ones(n_labels, dtype=torch.int64)
     args.labels[:n_labels//2] = 0
     args.n_cls = 2
     #labeled 
-    #args.vidx = torch.zeros((ne,), dtype=torch.int64).random_(0, nv-1) + 1 #np.random.randint(nv, (ne, 3))
-    #args.eidx = torch.zeros((nv,), dtype=torch.int64).random_(0, ne-1) + 1 #torch.random.randint(ne, (nv, 2))    
-    #args.v_weight = torch.ones((nv, 1)) / 2
-    #args.e_weight = torch.ones(ne, 1) / 3
     incidence_matrix = torch.randint(0, 2, (nv,ne))
-    #print(incidence_matrix)
-    vertex_index = torch.zeros((ne,), dtype=torch.int64).random_(0, nv-1) + 1
-    #print(args.vidx)
-    #print(args.eidx)
-    hyperedge_index = torch.tensor([
-    [0, 1, 2, 1, 2, 3],
-    [0, 0, 0, 1, 1, 1],
-    ])
+    print(incidence_matrix)
+    print(incidence_matrix.size())
     feature_dimension = 10
     node_features = torch.randn(nv, feature_dimension)
-    deepset = InvariantModel(feature_dimension, feature_dimension)
-    readout = deepset.forward(node_features)
-    print(readout)
+    #for every hyperedge inside the incidence matrix: 
+    print(node_features)
+    for edge_index in range(0, ne):
+            hyperedge_tensor = incidence_matrix[:, edge_index]
+            #find positions of 1 in tensor
+            condition = hyperedge_tensor > 0
+            indices = condition.nonzero()
+            #print(indices)
+            #stack the node features in a 2d tensor 
+            hyperedge_feature = torch.empty(size=(len(indices), feature_dimension))
+            for count, v_index in enumerate(indices):
+                hyperedge_feature[count] = node_features[v_index]
+                #hyperedge_feature.vstack(nf)
+            #compute the readout = deepset() 
+            print(hyperedge_feature)
+            deepset = InvariantModel(feature_dimension, feature_dimension)
+            readout = deepset.forward(hyperedge_feature)
+            print(readout)
 
 if __name__ =='__main__':
     parser = argparse.ArgumentParser()
