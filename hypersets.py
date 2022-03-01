@@ -2,7 +2,6 @@
 '''
 using hypergraph representations for document classification.
 '''
-import _init_paths
 import torch
 import torch.nn as nn
 import numpy as np
@@ -18,14 +17,13 @@ import os.path as osp
 import torch_geometric.transforms as T
 from torch_geometric.datasets import Planetoid
 from torch_geometric.nn import Sequential, GCNConv  # noqa
-from torch_geometric.nn import MessagePassing
-from torch import Tensor
 from torch.nn import Sequential as Seq, Linear, ReLU
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 from torch_geometric.utils import add_self_loops, degree
 from torch_geometric.data import Dataset
-from scipy.sparse import issparse, coo_matrix, dok_matrix, csr_matrix
+
+from data_helpers import adjacency_to_edge_index, incidence_to_adjacency, generate_incidence_matrix
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -109,12 +107,14 @@ class Hypertrain:
 		return
 
 
-def train(args):
-	args.e = torch.zeros(args.ne, args.n_hidden).to(device)
-	hypertrain = Hypertrain(args)
-	pred_all, loss, test_err = hypertrain.train(
-		args.v, args.e, args.label_idx, args.labels)
-	return test_err
+def train(data, optimizer, model):
+	model.train()
+	optimizer.zero_grad()
+	out = model(data.x, data.adj_t)
+	loss = F.nll_loss(out, data.y)
+	loss.backward()
+	optimizer.step()
+	return float(loss)
 
 
 def is_valid_dataset(parser, arg):
@@ -124,39 +124,14 @@ def is_valid_dataset(parser, arg):
 		return arg
 
 
-def from_sparse_matrix_to_edgeindex(A):
-	r"""Converts a scipy sparse matrix to edge indices and edge attributes.
-	Args:
-					A (scipy.sparse): A sparse matrix.
-	"""
-	A = A.tocoo()
-	row = torch.from_numpy(A.row).to(torch.long)
-	col = torch.from_numpy(A.col).to(torch.long)
-	edge_index = torch.stack([row, col], dim=0)
-	#edge_weight = torch.from_numpy(A.data)
-	return edge_index
-
-
-def adjacency_to_edge_index(A):
-	#adj = A.coo()
-	#row, col, edge_attr = adj.coo()
-	#edge_index = torch.stack([row, col], dim=0)
-	edge_index = (A > 0).nonzero().t()
-	return edge_index
-
-
-def incidence_to_adjacency(M, s=1, weights=False):
-	#M = csr_matrix(M)
-	A = torch.matmul(M, M.T)
-	print(A)
-	new = torch.where(A > 1, 1, A)
-	adjacency = new.fill_diagonal_(0)
-	return adjacency
-
-
-def test_GCN(num_features, hidden_channels, num_classes):
+def test_GCN(num_features, hidden_channels, num_classes, data):
 	model = HyperEdgeConv(num_features, hidden_channels, num_classes)
 	print(model)
+	h = model(data.x, data.edge_index)
+	optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+	for epoch in range(1, 201):
+		loss = train(data)
+
 
 
 def gen_synthetic_data(args, ne, nv):
@@ -169,11 +144,10 @@ def gen_synthetic_data(args, ne, nv):
 	labels = torch.ones(n_labels, dtype=torch.int64)
 	labels[:n_labels//2] = 0
 	n_cls = 2
-	incidence_matrix = torch.randint(0, 2, (nv, ne))
+	p = 0.6
+	#incidence_matrix = torch.randint(0, 2, (nv, ne))
+	incidence_matrix = generate_incidence_matrix(nv, ne, 3, p)
 	print(incidence_matrix)
-	#csr_incidence = incidence_matrix.to_sparse_csr()
-	# print(csr_incidence)
-	print(incidence_matrix.size())
 	A = incidence_to_adjacency(incidence_matrix.T)
 	print("adjacency matrix from incidence ", A)
 	print("edge index from adjacency matrix ", adjacency_to_edge_index(A))
@@ -181,11 +155,11 @@ def gen_synthetic_data(args, ne, nv):
 	initial_node_features = torch.randn(nv, feature_dimension)
 	# for every hyperedge inside the incidence matrix:
 	print("These are the initial node features: ", initial_node_features)
-
+	edge_index = adjacency_to_edge_index(A)
 	hyperedge_feature = torch.empty(size=(ne, feature_dimension))
 
-	for edge_index in range(0, ne):
-		hyperedge_tensor = incidence_matrix[:, edge_index]
+	for edge_iter in range(0, ne):
+		hyperedge_tensor = incidence_matrix[:, edge_iter]
 		# find positions of 1 in tensor
 		condition = hyperedge_tensor > 0
 		indices = condition.nonzero()
@@ -201,14 +175,17 @@ def gen_synthetic_data(args, ne, nv):
 			  single_hyperedge_feature)
 		deepset = InvariantModel(feature_dimension, feature_dimension)
 		readout = deepset.forward(single_hyperedge_feature)
-		hyperedge_feature[edge_index] = readout
-
-	# build the Data object
-
-	print("This is the tensor of hyperedge features after deepset: ", hyperedge_feature)
+		hyperedge_feature[edge_iter] = readout
+	
+		# build the Data object
+	data = Data(x=hyperedge_feature, edge_index=edge_index)
+	#build data y
+	print(data)
+	# device = torch.device('cuda')
+	# data = data.to(device)
 	# compute the line graph, get the adjacency matrix, than the edge index
 
-	test_GCN(feature_dimension, int(feature_dimension/2), n_cls)
+	test_GCN(feature_dimension, int(feature_dimension/2), n_cls, data)
 	# Readout is the new feature vector representing the hyperedge. Now
 
 
@@ -240,4 +217,4 @@ if __name__ == '__main__':
 	dataset = Planetoid(".", dataset, transform=T.NormalizeFeatures())
 	data = dataset[0]
 
-	gen_synthetic_data(args, ne=3, nv=10)
+	gen_synthetic_data(args, ne=4, nv=5)
