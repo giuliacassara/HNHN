@@ -1,4 +1,5 @@
 ## Hypergraph representation
+One can run training on the main script as follows:
 
 `python hypersets.py`
 
