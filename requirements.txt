@@ -1,7 +1,7 @@
-python==3.9.7
-python-dateutil==2.8.2
-python-louvain==0.15
-pytorch==1.10.1
-numpy==1.21.2
-networkx==2.5.1
-#pyg was installed with anaconda 
+# This file may be used to create an environment using:
+# $ conda create --name <env> --file <this file>
+
+python==3.8.5
+scipy
+numpy 
+networkx

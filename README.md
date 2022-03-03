@@ -2,13 +2,16 @@
 
 `python hypersets.py`
 
-
-Note:
-[`baselines.py`](baselines.py) assumes the presence of two baseline repos: [HyperGCN](https://github.com/malllabiisc/HyperGCN) and [HGNN](https://github.com/iMoonLab/HGNN). If one wishes to run these baseline models, their directories should be named as `hypergcn` and `hgnn`, respectively, and should be placed in the parent directory of the current repo, as indicated in the [_init_paths.py script](_init_paths.py).
-
-
 ## Data processing
+TODO
 
-[data.py](data.py) extracts and processes raw data. For instance the [Cora Information Extraction data](https://people.cs.umass.edu/mccallum/data.html).
+## Requirements
+This environment is built using Python 3.8.5 on Ubuntu 20.04 using Anaconda\
 
-For an example of processed data please see the [CiteSeer data](data/citeseer6cls3703.pt) ([citeseer.pt](data/citeseer.pt) contains the same hypergraph but with reduced feature dimension).
+Pytorch installation:
+
+`conda install pytorch torchvision torchaudio cudatoolkit=xx.x -c pytorch`
+
+I suggest to also install Pytorch Geometric using Anaconda [Link to guide here]( https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html)
+
+`conda install pyg -c pyg -c conda-forge`
