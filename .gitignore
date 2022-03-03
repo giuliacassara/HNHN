@@ -9,6 +9,7 @@ __pycache__/
 # other
 .vscode
 
+hypergraph.py
 Cora/
 Citeseer/
 Pubmed/

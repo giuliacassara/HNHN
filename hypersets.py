@@ -95,18 +95,6 @@ class HyperEdgeConv(torch.nn.Module):
 		# return F.log_softmax(x, dim=1)
 
 
-class Hypertrain:
-	def __init__(self, args):
-		# cross entropy between predicted and actual labels
-		self.loss_fn = nn.CrossEntropyLoss()  # consider logits
-
-	def train(self):
-		return
-
-	def eval(self, all_pred):
-		return
-
-
 def train(data, optimizer, model):
 	model.train()
 	optimizer.zero_grad()
@@ -191,30 +179,12 @@ def gen_synthetic_data(args, ne, nv):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--use_gdc', action='store_true',
-						help='Use GDC preprocessing.')
-
-	parser.add_argument('--verbose', action='store_true', default=False,
-						help='Validate during training pass.')
-	parser.add_argument('--seed', type=int, default=42, help='Random seed.')
-	# Training settings
-	parser.add_argument('--epochs', type=int, default=30,
-						help='Number of epochs to train.')
-	parser.add_argument('--lr', type=float, default=0.01,
-						help='Initial learning rate.')
-	parser.add_argument('--weight_decay', type=float, default=5e-4,
-						help='Weight decay (L2 loss on parameters).')
-	parser.add_argument('--hidden', type=int, default=16,
-						help='Number of hidden units.')
-	parser.add_argument('--dropout', type=float, default=0.5,
-						help='Dropout rate (1 - keep probability).')
 	parser.add_argument('--dataset', default="Cora",
 						help='Citation Network. Choose one between (Cora, Citeseer, Pubmed)', type=lambda x: is_valid_dataset(parser, x))
 	args = parser.parse_args()
-
 	dataset = args.dataset
 	# path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', dataset)
-	dataset = Planetoid(".", dataset, transform=T.NormalizeFeatures())
-	data = dataset[0]
+	#dataset = Planetoid(".", dataset, transform=T.NormalizeFeatures())
+	#data = dataset[0]
 
 	gen_synthetic_data(args, ne=4, nv=5)
